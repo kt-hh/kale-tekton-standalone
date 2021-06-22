@@ -166,7 +166,8 @@ def run_tekton_pipeline(pipeline_yaml: str) -> Any:
         pipelinerun = yaml.safe_load(f)
 
     tekton_client = TektonClient()
-    run = tekton_client.create(entity='pipelinerun', body=pipelinerun, namespace=podutils.get_namespace())
+    run = tekton_client.create(entity='pipelinerun', body=pipelinerun,
+                               namespace=podutils.get_namespace())
 
     log.info("Successfully submitted pipeline run.")
     return run
