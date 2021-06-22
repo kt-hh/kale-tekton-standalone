@@ -42,12 +42,14 @@ RUN pip3 install --upgrade pip && \
 # Install Kale from KALE_BRANCH (defaults to "master")
 ARG KALE_BRANCH="master"
 WORKDIR /
-RUN git clone -b ${KALE_BRANCH} https://github.com/kubeflow-kale/kale
+RUN git clone -b ${KALE_BRANCH} https://github.com/tmax-cloud/kale-tekton-standalone.git
 
-WORKDIR /kale/backend
+WORKDIR /kale-tekton-standalone/backend
 RUN pip3 install --upgrade .
+RUN pip3 install --upgrade "kubernetes"
 
-WORKDIR /kale/labextension
+
+WORKDIR /kale-tekton-standalone/labextension
 RUN jlpm install && \
     jlpm run build && \
     jupyter labextension install .

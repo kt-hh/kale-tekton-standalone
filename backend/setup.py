@@ -34,8 +34,6 @@ setup(
               ],
     install_requires=[
         'kfp',
-        'kfp-tekton == 0.7.0',
-        'tekton-pipeline',
         'autopep8 >=1.4, <1.5',
         'astor >= 0.8.1',
         'nbformat >=4.4, <5.0',
