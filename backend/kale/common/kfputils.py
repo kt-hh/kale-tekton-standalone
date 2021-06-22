@@ -113,6 +113,8 @@ def compile_pipeline(pipeline_source: str, pipeline_name: str) -> str:
     foo = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(foo)
 
+    print(foo.auto_generated_pipeline)
+
     # path to generated pipeline package
     pipeline_package = os.path.join(os.path.dirname(pipeline_source),
                                     pipeline_name + '.pipeline.yaml')
