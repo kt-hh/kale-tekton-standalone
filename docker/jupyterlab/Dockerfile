@@ -33,7 +33,7 @@ RUN echo "set background=dark" >> /etc/vim/vimrc.local
 
 # Install latest KFP SDK
 RUN pip3 freeze
-RUN pip3 install --upgrade "pip" && \
+RUN pip3 install --upgrade pip && \
     pip3 install --upgrade "enum34==1.1.8" && \
     pip3 install --upgrade "jupyterlab>=2.0.0,<3.0.0"
 
