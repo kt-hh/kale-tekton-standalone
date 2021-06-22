@@ -197,16 +197,20 @@ def auto_generated_pipeline({%- for arg in pipeline.pps_names -%}
 {# The script will deploy the pipeline if run manually #}
 if __name__ == "__main__":
     pipeline_func = auto_generated_pipeline
-    pipeline_filename = pipeline_func.__name__ + '.pipeline.tar.gz'
-    import kfp.compiler as compiler
-    compiler.Compiler().compile(pipeline_func, pipeline_filename)
+    pipeline_filename = pipeline_func.__name__ + '.pipeline.yaml'
+    #import kfp.compiler as compiler
+    #compiler.Compiler().compile(pipeline_func, pipeline_filename)
+
+    from kfp_tekton.compiler import TektonCompiler
+    TektonCompiler().compile(pipeline_func, pipeline_filename)
 
     # Get or create an experiment and submit a pipeline run
-    import kfp
-    client = kfp.Client()
-    experiment = client.create_experiment('{{ experiment_name }}')
+    #import kfp
+    #client = kfp.Client()
+    #experiment = client.create_experiment('{{ experiment_name }}')
 
     # Submit a pipeline run
     from kale.common import kfputils
-    pipeline_id, version_id = kfputils.upload_pipeline(pipeline_filename, "{{ pipeline_name }}")
-    run_result = kfputils.run_pipeline(experiment_name=experiment.name, pipeline_id=pipeline_id, version_id=version_id)
+    #pipeline_id, version_id = kfputils.upload_pipeline(pipeline_filename, "{{ pipeline_name }}")
+    #run_result = kfputils.run_pipeline(experiment_name=experiment.name, pipeline_id=pipeline_id, version_id=version_id)
+    run_result = kfputils.run_tekton_pipeline(pipeline_filename)

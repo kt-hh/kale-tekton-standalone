@@ -34,6 +34,8 @@ setup(
               ],
     install_requires=[
         'kfp',
+        'kfp-tekton == 0.7.0',
+        'tekton-pipeline',
         'autopep8 >=1.4, <1.5',
         'astor >= 0.8.1',
         'nbformat >=4.4, <5.0',
@@ -51,7 +53,7 @@ setup(
         'ml_metadata >= 0.26.0, < 1',
         'progress >= 1.5',
         'kfserving >= 0.4.0, < 0.5.0',
-        'kubernetes < 12.0.0',
+        'kubernetes',
     ],
     extras_require={
         'dev': [

@@ -14,6 +14,7 @@
 
 import os
 import json
+import yaml
 import time
 import hashlib
 import logging
@@ -25,7 +26,8 @@ from typing import Tuple, Any
 from functools import lru_cache
 
 from kfp import Client
-from kfp.compiler import Compiler
+from kfp_tekton.compiler import TektonCompiler
+from tekton_pipeline import TektonClient
 
 from kale.common import utils, podutils, workflowutils
 
@@ -114,7 +116,7 @@ def compile_pipeline(pipeline_source: str, pipeline_name: str) -> str:
     # path to generated pipeline package
     pipeline_package = os.path.join(os.path.dirname(pipeline_source),
                                     pipeline_name + '.pipeline.yaml')
-    Compiler().compile(foo.auto_generated_pipeline, pipeline_package)
+    TektonCompiler().compile(foo.auto_generated_pipeline, pipeline_package)
     return pipeline_package
 
 
@@ -156,6 +158,18 @@ def upload_pipeline(pipeline_package_path: str, pipeline_name: str,
     log.info("Successfully uploaded version '%s' for pipeline '%s'.",
              version_name, pipeline_name)
     return pipeline_id, upv.id
+
+
+def run_tekton_pipeline(pipeline_yaml: str) -> Any:
+    log.info("Submitting Tekton PipelineRun '%s'...", pipeline_yaml)
+    with open(pipeline_yaml) as f:
+        pipelinerun = yaml.safe_load(f)
+
+    tekton_client = TektonClient()
+    run = tekton_client.create(entity='pipelinerun', body=pipelinerun, namespace=podutils.get_namespace())
+
+    log.info("Successfully submitted pipeline run.")
+    return run
 
 
 def run_pipeline(experiment_name: str, pipeline_id: str, run_name: str = None,

@@ -31,6 +31,8 @@ ENV SHELL /bin/bash
 COPY bashrc /etc/bash.bashrc
 RUN echo "set background=dark" >> /etc/vim/vimrc.local
 
+RUN pip3 uninstall -y tornado
+
 # Install latest KFP SDK & Kale & JupyterLab Extension
 RUN pip3 install --upgrade pip && \
     # XXX: Install enum34==1.1.8 because other versions lead to errors during
