@@ -44,8 +44,8 @@ RUN git clone -b ${KALE_BRANCH} https://github.com/tmax-cloud/kale-tekton-standa
 
 WORKDIR /kale-tekton-standalone/backend
 RUN pip3 install --upgrade .
-RUN pip3 install --upgrade "kubernetes"
 RUN pip3 install "kfp-tekton==0.7.0"
+RUN pip3 install --upgrade "kubernetes"
 
 WORKDIR /kale-tekton-standalone/labextension
 RUN jlpm install && \
