@@ -33,7 +33,8 @@ RUN echo "set background=dark" >> /etc/vim/vimrc.local
 
 # Install latest KFP SDK
 RUN pip3 freeze
-RUN pip3 install --upgrade "enum34==1.1.8" && \
+RUN pip3 install --upgrade "pip" && \
+    pip3 install --upgrade "enum34==1.1.8" && \
     pip3 install --upgrade "jupyterlab>=2.0.0,<3.0.0"
 
 # Install Kale from KALE_BRANCH (defaults to "master")
@@ -49,7 +50,7 @@ RUN jlpm install && \
     jlpm run build && \
     jupyter labextension install .
 
-RUN jupyter lab build --dev-build=False
+RUN jupyter lab build --dev-build=False --minimize=False
 
 RUN echo "jovyan ALL=(ALL:ALL) NOPASSWD:ALL" > /etc/sudoers.d/jovyan
 WORKDIR /home/jovyan
