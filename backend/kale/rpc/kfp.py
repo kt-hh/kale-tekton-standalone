@@ -88,14 +88,16 @@ def upload_pipeline(request, pipeline_package_path, pipeline_metadata):
                          "name": pipeline_name}}
 
 
-def run_pipeline(request, pipeline_metadata, pipeline_id, version_id):
+def run_pipeline(request, pipeline_metadata):
     """Run a pipeline."""
-    run = kfputils.run_pipeline(
-        experiment_name=pipeline_metadata["experiment_name"],
-        pipeline_id=pipeline_id,
-        version_id=version_id)
+    # run = kfputils.run_pipeline(
+    #     experiment_name=pipeline_metadata["experiment_name"],
+    #     pipeline_id=pipeline_id,
+    #     version_id=version_id)
 
-    return {"id": run.id, "name": run.name, "status": run.status}
+    run = kfputils.run_pipeline(pipeline_name=pipeline_metadata["pipeline_name"])
+
+    return {"entity": run}
 
 
 def get_run(request, run_id):

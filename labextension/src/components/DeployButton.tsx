@@ -43,7 +43,7 @@ export const SplitDeployButton: React.FunctionComponent<ISplitDeployButton> = pr
       label: 'Compile and Run' + (props.katibRun ? ' Katib Job' : ''),
       value: 'run',
     },
-    { label: 'Compile and Upload', value: 'upload' },
+//     { label: 'Compile and Upload', value: 'upload' },
     { label: 'Compile and Save', value: 'compile' },
   ];
 

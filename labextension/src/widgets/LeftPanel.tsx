@@ -473,34 +473,34 @@ export class KubeflowKaleLeftPanel extends React.Component<IProps, IState> {
         // Detect poddefault labels applied on server and add them as steps defaults
         // fixme: This RPC could be called just when starting the widget
         //        and not every time we set a new notebook
-        const podDefaultLabels = await commands.findPodDefaultLabelsOnServer();
-        Object.keys(podDefaultLabels)
-          .map(key => `label:${key}:${podDefaultLabels[key]}`)
-          .forEach(label => {
-            if (!DefaultState.metadata.steps_defaults.includes(label)) {
-              DefaultState.metadata.steps_defaults.push(label);
-            }
-          });
+//         const podDefaultLabels = await commands.findPodDefaultLabelsOnServer();
+//         Object.keys(podDefaultLabels)
+//           .map(key => `label:${key}:${podDefaultLabels[key]}`)
+//           .forEach(label => {
+//             if (!DefaultState.metadata.steps_defaults.includes(label)) {
+//               DefaultState.metadata.steps_defaults.push(label);
+//             }
+//           });
 
         // Get experiment information last because it may take more time to respond
-        this.setState({ gettingExperiments: true });
-        const {
-          experiments,
-          experiment,
-          experiment_name,
-        } = await commands.getExperiments(
-          this.state.metadata.experiment,
-          this.state.metadata.experiment_name,
-        );
-        this.setState((prevState, props) => ({
-          experiments,
-          gettingExperiments: false,
-          metadata: {
-            ...prevState.metadata,
-            experiment,
-            experiment_name,
-          },
-        }));
+//         this.setState({ gettingExperiments: true });
+//         const {
+//           experiments,
+//           experiment,
+//           experiment_name,
+//         } = await commands.getExperiments(
+//           this.state.metadata.experiment,
+//           this.state.metadata.experiment_name,
+//         );
+//         this.setState((prevState, props) => ({
+//           experiments,
+//           gettingExperiments: false,
+//           metadata: {
+//             ...prevState.metadata,
+//             experiment,
+//             experiment_name,
+//           },
+//         }));
       }
 
       // if the key exists in the notebook's metadata
@@ -686,48 +686,48 @@ export class KubeflowKaleLeftPanel extends React.Component<IProps, IState> {
     }
 
     // UPLOAD
-    const uploadPipeline =
-      this.state.deploymentType === 'upload' ||
-      this.state.deploymentType === 'run'
-        ? await commands.uploadPipeline(
-            compileNotebook.pipeline_package_path,
-            compileNotebook.pipeline_metadata,
-            _updateDeployProgress,
-          )
-        : null;
-
-    if (!uploadPipeline) {
-      this.setState({ runDeployment: false });
-      _updateDeployProgress({ pipeline: false });
-      return;
-    }
+//     const uploadPipeline =
+//       this.state.deploymentType === 'upload' ||
+//       this.state.deploymentType === 'run'
+//         ? await commands.uploadPipeline(
+//             compileNotebook.pipeline_package_path,
+//             compileNotebook.pipeline_metadata,
+//             _updateDeployProgress,
+//           )
+//         : null;
+//
+//     if (!uploadPipeline) {
+//       this.setState({ runDeployment: false });
+//       _updateDeployProgress({ pipeline: false });
+//       return;
+//     }
 
     // RUN
     if (this.state.deploymentType === 'run') {
       if (metadata.katib_run) {
-        try {
-          const katibExperiment = await commands.runKatib(
-            nbFilePath,
-            metadata,
-            uploadPipeline.pipeline.pipelineid,
-            uploadPipeline.pipeline.versionid,
-            _updateDeployProgress,
-          );
-          commands.pollKatib(katibExperiment, _updateDeployProgress);
-        } catch (error) {
-          this.setState({ runDeployment: false });
-          throw error;
-        }
+//         try {
+//           const katibExperiment = await commands.runKatib(
+//             nbFilePath,
+//             metadata,
+//             uploadPipeline.pipeline.pipelineid,
+//             uploadPipeline.pipeline.versionid,
+//             _updateDeployProgress,
+//           );
+//           commands.pollKatib(katibExperiment, _updateDeployProgress);
+//         } catch (error) {
+//           this.setState({ runDeployment: false });
+//           throw error;
+//         }
       } else {
-        const runPipeline = await commands.runPipeline(
-          uploadPipeline.pipeline.pipelineid,
-          uploadPipeline.pipeline.versionid,
+          const runPipeline = await commands.runPipeline(
+//           uploadPipeline.pipeline.pipelineid,
+//           uploadPipeline.pipeline.versionid,
           compileNotebook.pipeline_metadata,
           _updateDeployProgress,
         );
-        if (runPipeline) {
-          commands.pollRun(runPipeline, _updateDeployProgress);
-        }
+//         if (runPipeline) {
+//           commands.pollRun(runPipeline, _updateDeployProgress);
+//         }
       }
     }
     // stop deploy button icon spin
@@ -740,38 +740,38 @@ export class KubeflowKaleLeftPanel extends React.Component<IProps, IState> {
 
   render() {
     // FIXME: What about human-created Notebooks? Match name and old API as well
-    const selectedExperiments: IExperiment[] = this.state.experiments.filter(
-      e =>
-        e.id === this.state.metadata.experiment.id ||
-        e.name === this.state.metadata.experiment.name ||
-        e.name === this.state.metadata.experiment_name,
-    );
-    if (this.state.experiments.length > 0 && selectedExperiments.length === 0) {
-      selectedExperiments.push(this.state.experiments[0]);
-    }
-    let experimentInputSelected = '';
-    let experimentInputValue = '';
-    if (selectedExperiments.length > 0) {
-      experimentInputSelected = selectedExperiments[0].id;
-      if (selectedExperiments[0].id === NEW_EXPERIMENT.id) {
-        if (this.state.metadata.experiment.name !== '') {
-          experimentInputValue = this.state.metadata.experiment.name;
-        } else {
-          experimentInputValue = this.state.metadata.experiment_name;
-        }
-      } else {
-        experimentInputValue = selectedExperiments[0].name;
-      }
-    }
-    const experiment_name_input = (
-      <ExperimentInput
-        updateValue={this.updateExperiment}
-        options={this.state.experiments}
-        selected={experimentInputSelected}
-        value={experimentInputValue}
-        loading={this.state.gettingExperiments}
-      />
-    );
+//     const selectedExperiments: IExperiment[] = this.state.experiments.filter(
+//       e =>
+//         e.id === this.state.metadata.experiment.id ||
+//         e.name === this.state.metadata.experiment.name ||
+//         e.name === this.state.metadata.experiment_name,
+//     );
+//     if (this.state.experiments.length > 0 && selectedExperiments.length === 0) {
+//       selectedExperiments.push(this.state.experiments[0]);
+//     }
+//     let experimentInputSelected = '';
+//     let experimentInputValue = '';
+//     if (selectedExperiments.length > 0) {
+//       experimentInputSelected = selectedExperiments[0].id;
+//       if (selectedExperiments[0].id === NEW_EXPERIMENT.id) {
+//         if (this.state.metadata.experiment.name !== '') {
+//           experimentInputValue = this.state.metadata.experiment.name;
+//         } else {
+//           experimentInputValue = this.state.metadata.experiment_name;
+//         }
+//       } else {
+//         experimentInputValue = selectedExperiments[0].name;
+//       }
+//     }
+//     const experiment_name_input = (
+//       <ExperimentInput
+//         updateValue={this.updateExperiment}
+//         options={this.state.experiments}
+//         selected={experimentInputSelected}
+//         value={experimentInputValue}
+//         loading={this.state.gettingExperiments}
+//       />
+//     );
 
     const pipeline_name_input = (
       <Input
@@ -795,48 +795,48 @@ export class KubeflowKaleLeftPanel extends React.Component<IProps, IState> {
       />
     );
 
-    const katib_run_input = (
-      <div className="input-container">
-        <LightTooltip
-          title={'Enable this option to run HyperParameter Tuning with Katib'}
-          placement="top-start"
-          interactive={true}
-          TransitionComponent={Zoom}
-        >
-          <div className="toolbar">
-            <div className="switch-label">HP Tuning with Katib</div>
-            <Switch
-              checked={this.state.metadata.katib_run}
-              onChange={_ => this.updateKatibRun()}
-              color="primary"
-              name="enableKatib"
-              className="material-switch"
-              inputProps={{ 'aria-label': 'primary checkbox' }}
-            />
-          </div>
-        </LightTooltip>
-      </div>
-    );
-
-    const volsPanel = (
-      <VolumesPanel
-        volumes={this.state.volumes}
-        notebookVolumes={this.state.notebookVolumes}
-        metadataVolumes={this.state.metadata.volumes}
-        notebookMountPoints={this.getNotebookMountPoints()}
-        selectVolumeTypes={this.state.selectVolumeTypes}
-        useNotebookVolumes={this.state.metadata.snapshot_volumes}
-        updateVolumesSwitch={this.updateVolumesSwitch}
-        autosnapshot={this.state.metadata.autosnapshot}
-        updateAutosnapshotSwitch={this.updateAutosnapshotSwitch}
-        rokError={this.props.rokError}
-        updateVolumes={this.updateVolumes}
-        storageClassName={this.state.metadata.storage_class_name}
-        updateStorageClassName={this.updateStorageClassName}
-        volumeAccessMode={this.state.metadata.volume_access_mode}
-        updateVolumeAccessMode={this.updateVolumeAccessMode}
-      />
-    );
+//     const katib_run_input = (
+//       <div className="input-container">
+//         <LightTooltip
+//           title={'Enable this option to run HyperParameter Tuning with Katib'}
+//           placement="top-start"
+//           interactive={true}
+//           TransitionComponent={Zoom}
+//         >
+//           <div className="toolbar">
+//             <div className="switch-label">HP Tuning with Katib</div>
+//             <Switch
+//               checked={this.state.metadata.katib_run}
+//               onChange={_ => this.updateKatibRun()}
+//               color="primary"
+//               name="enableKatib"
+//               className="material-switch"
+//               inputProps={{ 'aria-label': 'primary checkbox' }}
+//             />
+//           </div>
+//         </LightTooltip>
+//       </div>
+//     );
+//
+//     const volsPanel = (
+//       <VolumesPanel
+//         volumes={this.state.volumes}
+//         notebookVolumes={this.state.notebookVolumes}
+//         metadataVolumes={this.state.metadata.volumes}
+//         notebookMountPoints={this.getNotebookMountPoints()}
+//         selectVolumeTypes={this.state.selectVolumeTypes}
+//         useNotebookVolumes={this.state.metadata.snapshot_volumes}
+//         updateVolumesSwitch={this.updateVolumesSwitch}
+//         autosnapshot={this.state.metadata.autosnapshot}
+//         updateAutosnapshotSwitch={this.updateAutosnapshotSwitch}
+//         rokError={this.props.rokError}
+//         updateVolumes={this.updateVolumes}
+//         storageClassName={this.state.metadata.storage_class_name}
+//         updateStorageClassName={this.updateStorageClassName}
+//         volumeAccessMode={this.state.metadata.volume_access_mode}
+//         updateVolumeAccessMode={this.updateVolumeAccessMode}
+//       />
+//     );
 
     return (
       <ThemeProvider theme={theme}>
@@ -876,7 +876,6 @@ export class KubeflowKaleLeftPanel extends React.Component<IProps, IState> {
               </div>
 
               <div className={'input-container'}>
-                {experiment_name_input}
                 {pipeline_name_input}
                 {pipeline_desc_input}
               </div>
@@ -887,44 +886,6 @@ export class KubeflowKaleLeftPanel extends React.Component<IProps, IState> {
                 'kale-component ' + (this.state.isEnabled ? '' : 'hidden')
               }
             >
-              <div>
-                <p
-                  className="kale-header"
-                  style={{ color: theme.kale.headers.main }}
-                >
-                  Run
-                </p>
-              </div>
-              {katib_run_input}
-              <div className="input-container add-button">
-                <Button
-                  variant="contained"
-                  color="primary"
-                  size="small"
-                  title="SetupKatibJob"
-                  onClick={this.toggleKatibDialog}
-                  disabled={!this.state.metadata.katib_run}
-                  style={{ marginLeft: '10px', marginTop: '0px' }}
-                >
-                  Set Up Katib Job
-                </Button>
-              </div>
-            </div>
-
-            <div
-              className={
-                'kale-component ' + (this.state.isEnabled ? '' : 'hidden')
-              }
-            >
-              <AdvancedSettings
-                title={'Advanced Settings'}
-                dockerImageValue={this.state.metadata.docker_image}
-                dockerImageDefaultValue={DefaultState.metadata.docker_image}
-                dockerChange={this.updateDockerImage}
-                debug={this.state.deployDebugMessage}
-                volsPanel={volsPanel}
-                changeDebug={this.changeDeployDebugMessage}
-              />
             </div>
           </div>
           <div

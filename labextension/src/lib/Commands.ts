@@ -62,8 +62,8 @@ interface IUploadPipelineResp {
 interface IRunPipelineArgs {
   pipeline_metadata: Object;
   pipeline_package_path?: string;
-  pipeline_id?: string;
-  version_id?: string;
+//   pipeline_id?: string;
+//   version_id?: string;
 }
 
 interface IKatibRunArgs {
@@ -484,16 +484,16 @@ export default class Commands {
   };
 
   runPipeline = async (
-    pipelineId: string,
-    versionId: string,
+//     pipelineId: string,
+//     versionId: string,
     compiledPipelineMetadata: IKaleNotebookMetadata,
     onUpdate: Function,
   ) => {
     onUpdate({ showRunProgress: true });
     const runPipelineArgs: IRunPipelineArgs = {
       pipeline_metadata: compiledPipelineMetadata,
-      pipeline_id: pipelineId,
-      version_id: versionId,
+//       pipeline_id: pipelineId,
+//       version_id: versionId,
     };
     const runPipeline = await _legacy_executeRpcAndShowRPCError(
       this._notebook,
