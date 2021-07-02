@@ -31,16 +31,28 @@ ENV SHELL /bin/bash
 COPY bashrc /etc/bash.bashrc
 RUN echo "set background=dark" >> /etc/vim/vimrc.local
 
-RUN pip3 uninstall -y tornado
-
-# Install latest KFP SDK & Kale & JupyterLab Extension
+# Install latest KFP SDK
+RUN pip3 freeze
 RUN pip3 install --upgrade pip && \
-    # XXX: Install enum34==1.1.8 because other versions lead to errors during
-    #  KFP installation
     pip3 install --upgrade "enum34==1.1.8" && \
-    pip3 install --upgrade "jupyterlab>=2.0.0,<3.0.0" && \
-    pip3 install --upgrade kubeflow-kale && \
-    jupyter labextension install kubeflow-kale-labextension
+    pip3 install --upgrade "jupyterlab>=2.0.0,<3.0.0"
+
+# Install Kale from KALE_BRANCH (defaults to "master")
+ARG KALE_BRANCH="master"
+WORKDIR /
+RUN git clone -b ${KALE_BRANCH} https://github.com/tmax-cloud/kale-tekton-standalone.git
+
+WORKDIR /kale-tekton-standalone/backend
+RUN pip3 install --upgrade .
+RUN pip3 install "kfp-tekton==0.7.0"
+RUN pip3 install --upgrade "kubernetes"
+
+WORKDIR /kale-tekton-standalone/labextension
+RUN jlpm install && \
+    jlpm run build && \
+    jupyter labextension install .
+
+RUN jupyter lab build --dev-build=False --minimize=False
 
 RUN echo "jovyan ALL=(ALL:ALL) NOPASSWD:ALL" > /etc/sudoers.d/jovyan
 WORKDIR /home/jovyan

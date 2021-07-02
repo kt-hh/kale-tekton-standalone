@@ -113,6 +113,8 @@ def compile_pipeline(pipeline_source: str, pipeline_name: str) -> str:
     foo = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(foo)
 
+    print(foo.auto_generated_pipeline)
+
     # path to generated pipeline package
     pipeline_package = pipeline_name + '.pipeline.yaml'
     TektonCompiler().compile(foo.auto_generated_pipeline, pipeline_package)
@@ -174,7 +176,8 @@ def run_pipeline(pipeline_name: str) -> Any:
         pipelinerun = yaml.safe_load(f)
 
     tekton_client = TektonClient()
-    run = tekton_client.create(entity='pipelinerun', body=pipelinerun, namespace=podutils.get_namespace())
+    run = tekton_client.create(entity='pipelinerun', body=pipelinerun,
+                               namespace=podutils.get_namespace())
 
     log.info("Successfully submitted pipeline run.")
     return run
