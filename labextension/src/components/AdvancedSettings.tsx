@@ -27,7 +27,7 @@ interface AdvancedSettingsProps {
   dockerImageDefaultValue: string;
   dockerChange: Function;
   changeDebug: Function;
-  volsPanel: any;
+  //volsPanel: any;
 }
 
 export const AdvancedSettings: React.FunctionComponent<AdvancedSettingsProps> = props => {
@@ -56,29 +56,6 @@ export const AdvancedSettings: React.FunctionComponent<AdvancedSettingsProps> = 
           placeholder={props.dockerImageDefaultValue}
           variant="standard"
         />
-
-        <div className="toolbar" style={{ padding: '12px 4px 0 4px' }}>
-          <div className="switch-label">Debug</div>
-          <Switch
-            checked={props.debug}
-            onChange={_ => props.changeDebug()}
-            color="primary"
-            name="enableKale"
-            inputProps={{ 'aria-label': 'primary checkbox' }}
-          />
-        </div>
-
-        <div className="kale-component" key="kale-component-volumes">
-          <div className="kale-header-switch">
-            <p
-              className="kale-header"
-              style={{ color: theme.kale.headers.main }}
-            >
-              Volumes
-            </p>
-          </div>
-          {props.volsPanel}
-        </div>
       </div>
     </div>
   );
