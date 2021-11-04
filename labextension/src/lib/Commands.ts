@@ -384,12 +384,7 @@ export default class Commands {
       // compileNotebook is the name of the tar package, that generated in the
       // workdir. Instead, the python script has a slightly different name and
       // is generated in the same directory where the notebook lives.
-      onUpdate({
-        compiledPath: compileNotebook.pipeline_package_path.replace(
-          'pipeline.yaml',
-          'kale.py',
-        ),
-      });
+      onUpdate({ compiledPath: compileNotebook.pipeline_package_path });
     }
     return compileNotebook;
   };

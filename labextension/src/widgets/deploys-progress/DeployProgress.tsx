@@ -77,13 +77,17 @@ export const DeployProgress: React.FunctionComponent<DeployProgress> = props => 
   const getRunLink = (run: any) => {
     // link: /_/pipeline/#/runs/details/<id>
     // id = runPipeline.id
-    if (!run.id) {
-      return '#';
-    }
-    const link = `${window.location.origin}/_/pipeline/#/runs/details/${run.id}`;
+    const link = `${window.location.origin}/k8s/ns/#/pipelineruns`;
     return props.namespace
-      ? link.replace('#', `?ns=${props.namespace}#`)
+      ? link.replace('#', `${props.namespace}`)
       : link;
+//     if (!run.id) {
+//       return '#';
+//     }
+//     const link = `${window.location.origin}/_/pipeline/#/runs/details/${run.id}`;
+//     return props.namespace
+//       ? link.replace('#', `?ns=${props.namespace}#`)
+//       : link;
   };
 
   const getRunText = (pipeline: any) => {
