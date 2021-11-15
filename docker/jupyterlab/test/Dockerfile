@@ -14,8 +14,8 @@
 
 # Use tensorflow-1.14.0 as a base image, allowing the user to
 # speficy if they want GPU support, by setting IMAGE_TYPE to "gpu".
-ARG IMAGE_TYPE="gpu"
-FROM gcr.io/kubeflow-images-public/tensorflow-1.14.0-notebook-${IMAGE_TYPE}:v0.7.0
+ARG IMAGE_TYPE="cpu"
+FROM gcr.io/kubeflow-images-public/tensorflow-2.1.0-notebook-${IMAGE_TYPE}:1.0.0
 
 USER root
 
@@ -42,13 +42,15 @@ RUN pip3 install --upgrade pip && \
 # Install Kale from KALE_BRANCH (defaults to "master")
 # ARG KALE_BRANCH="master"
 WORKDIR /
-# RUN git clone -b ${KALE_BRANCH} https://github.com/kubeflow-kale/kale
-COPY kale/ kale/
+RUN git clone https://github.com/tmax-cloud/kale-tekton-standalone.git
 
-WORKDIR /kale/backend
+WORKDIR /kale-tekton-standalone/backend
 RUN pip3 install --upgrade .
+RUN pip3 install "kfp-tekton==1.0.0"
+RUN pip3 install "tekton-pipeline==0.1.3"
+RUN pip3 install --upgrade "kubernetes"
 
-WORKDIR /kale/labextension
+WORKDIR /kale-tekton-standalone/labextension
 RUN jlpm install && \
     jlpm run build && \
     jupyter labextension install .
