@@ -14,6 +14,7 @@
 
 import os
 import re
+import copy
 import warnings
 
 from typing import Any, Dict
@@ -51,6 +52,10 @@ LABEL_TAG = r'^label:%s:(.*)$' % K8S_ANNOTATION_KEY
 # E.g.: limit:nvidia.com/gpu:2
 LIMITS_TAG = r'^limit:([_a-z-\.\/]+):([_a-zA-Z0-9\.]+)$'
 
+# TODO: 태그 추가
+DISTRIBUTE_TAG = r'^distribute$'
+WORKERS_TAG = r'^workers:[1-9][0-9]*$'
+
 _TAGS_LANGUAGE = [SKIP_TAG,
                   IMPORT_TAG,
                   FUNCTIONS_TAG,
@@ -61,7 +66,9 @@ _TAGS_LANGUAGE = [SKIP_TAG,
                   PIPELINE_METRICS_TAG,
                   ANNOTATION_TAG,
                   LABEL_TAG,
-                  LIMITS_TAG]
+                  LIMITS_TAG,
+                  DISTRIBUTE_TAG,
+                  WORKERS_TAG]
 # These tags are applied to every step of the pipeline
 _STEPS_DEFAULTS_LANGUAGE = [ANNOTATION_TAG,
                             LABEL_TAG,
@@ -75,6 +82,34 @@ _kale_kfp_metrics = {
 }
 _kale_kfputils.generate_mlpipeline_metrics(_kale_kfp_metrics)\
 '''
+
+SET_TF_CONFIG = '''
+NUM_WORKERS = @@NUM_WORKERS@@
+port = @@PORT@@
+workerIndex = 0
+if not os.path.isfile("/marshal/tfConfigIP.json"):
+    with open("/marshal/tfConfigIP.json", "w") as json_file:
+        json.dump({"IP":[os.popen("hostname -I").read().rstrip() + ":" + port]}, json_file, ensure_ascii = False)
+else:
+    with open("/marshal/tfConfigIP.json", "r") as json_file:
+        json_data = json.load(json_file)
+        json_data['IP'].append(os.popen("hostname -I").read().rstrip() + ":" + port)
+    with open("/marshal/tfConfigIP.json", "w") as json_save:
+        json.dump(json_data, json_save)
+        workerIndex = len(json_data['IP'])-1
+while True:
+    with open("/marshal/tfConfigIP.json", "r") as ip_file:
+        ip_data = json.load(ip_file)
+        if len(ip_data['IP']) < NUM_WORKERS:
+            time.sleep(3)
+        else:
+            os.environ['TF_CONFIG'] = json.dumps({
+                'cluster': {'worker': ip_data['IP']},
+                'task': {'type': 'worker', 'index': workerIndex}
+            })
+            break
+'''
+
 
 
 def get_annotation_or_label_from_tag(tag_parts):
@@ -238,6 +273,142 @@ class NotebookProcessor(BaseProcessor):
         pipeline_parameters = list()
         # Variables that will become pipeline metrics
         pipeline_metrics = list()
+
+        ### distribute training 여부 확인하고 전처리해주는 과정 ###
+
+        # 먼저, 이 노트북에 distribute 셀이 있다면 dict를 만들어 "이름:worker개수" 들을 저장한다.
+
+        isDistribute = False # 해당 노트북에 distribute cell이 있는지 판단
+        distributeDict = dict() # 이 노트북 속 distribute cell들의 name과 worker 개수 저장
+
+        for c in self.notebook.cells:
+            if not ((c.cell_type == "code")
+                    and ('tags' in c.metadata)
+                    and (len(c.metadata['tags']) > 0)
+                    and (any(re.match(DISTRIBUTE_TAG, t)
+                         for t in c.metadata['tags']))):
+                # 이 셀이 코드 셀이 아니거나 distribute 태그가 없으면 이 과정이 필요 없음
+                continue
+
+            # 해당 셀이 코드 셀이고 distribute 태그가 있는 상황 보장됨
+            # block:name 태그가 없거나 workers:n 태그가 없으면 에러
+            # c.metadata = {"tags":["block:first","prev:data","prev:variables","workers:3","distribute"]}
+            if (not (any(re.match(BLOCK_TAG, t)
+                         for t in c.metadata['tags']))):
+                raise ValueError('"distribute" tag must be used with "block:name" tag.')
+            if (not (any(re.match(WORKERS_TAG, t)
+                         for t in c.metadata['tags']))):
+                raise ValueError('"distribute" tag must be used with "workers:n" tag, where n is a positive integer.')
+            if (sum(bool(re.match(WORKERS_TAG, t)) for t in c.metadata['tags']) > 1):
+                raise ValueError('"workers:n" tag must be unique.')
+
+            # 해당 셀에 distribute, block:name, workers:n 태그가 모두 있는 상황 보장됨
+            # notebook의 dict에 해당 cell 정보 추가
+            # {} -> {"first":3} -> {"first":3, "second":4} -> ...
+            isDistribute = True # 추후에 다시 셀들을 순회하면서 수정할 때 사용하기 위한 플래그
+            numWorkersStr = '0' # 의미 없는 초기값, 아래에서 수정될 것
+            for t in c.metadata['tags']:
+                if (re.match(BLOCK_TAG, t)):
+                    # 태그를 순회하며 block:name 태그를 찾음
+                    # block 태그는 유일할 것이므로 필요한 작업 끝나면 break
+                    distributeStepName = t.split(':').pop(1)
+                    for _t in c.metadata['tags']:
+                        if (re.match(WORKERS_TAG, _t)):
+                            # 태그를 다시 처음부터 순회하며 workers:n 태그를 찾음
+                            # workers:n 태그는 유일할 것이므로 필요한 작업 끝나면 break
+                            numWorkersStr = _t.split(':').pop(1)
+                            distributeDict[distributeStepName] = int(numWorkersStr)
+                            break
+                    break
+            # 셀의 소스에 TF_CONFIG 세팅하는 코드를 (line 단위로 쪼갠 리스트 형태로) 붙여준다.
+            # NUM_WORKERS와 PORT도 설정해준다.
+            SET_TF_CONFIG = SET_TF_CONFIG.replace('@@NUM_WORKERS@@', numWorkersStr)
+            SET_TF_CONFIG = SET_TF_CONFIG.replace('@@PORT@@', '12345')
+            # SET_TF_CONFIG 안에 worker 개수를 대입해주는 것도 필요하다.
+            SET_TF_CONFIG_LIST = [x + '\n' for x in SET_TF_CONFIG.split('\n')]
+            c.source = SET_TF_CONFIG_LIST + c.source
+
+        # 노트북의 모든 셀들에 대해 loop 종료
+        # 모든 distribute 셀에 TF_CONFIG 세팅 코드 삽입 완료
+        # dict에 name과 worker수 저장 완료 {"first":3, "second":4}
+
+        if (isDistribute):
+            # 노트북에 distribute 셀이 없으면 이 단계가 필요 없음
+
+            # 모든 셀들의 "prev:name" 태그들을 보고, (dict를 참조하여) 필요시 번호를 붙여준 후,
+            # distribute 셀들을 찾아서 복제하면서 "block:name" 뒤에 번호를 붙여준다.
+                # 주의: prev:name 수정이 먼저이고 복제가 나중이어야 한다.
+                # (prev:name 태그들 수정사항이 반영된 채 복제되어야 하기 때문)
+
+            # 먼저 prev:name 태그들을 찾아서 수정한다.
+            # 수정이 끝난 다음 새로운 반복문을 만들고,
+            # distribute 셀들을 찾아 복제하면서 block:name 뒤에 번호를 붙여준다.
+
+            for c in self.notebook.cells:
+                if not ((c.cell_type == "code")
+                        and ('tags' in c.metadata)
+                        and (len(c.metadata['tags']) > 0)
+                        and (any(re.match(PREV_TAG, t)
+                                 for t in c.metadata['tags']))):
+                    # 이 셀이 코드 셀이 아니거나 prev:name 태그가 없으면 이 과정이 필요 없음
+                    continue
+
+                # 코드 셀이고 prev:name 태그가 있는 상황 보장됨
+                # 새로운 태그 리스트를 만들어서, 태그들을 재구성하여 저장
+                newTags = list()
+                for t in c.metadata['tags']:
+                    if (re.match(PREV_TAG, t)):
+                        # 이 태그가 prev:name 태그이고
+                        prevStepName = t.split(':').pop(1)
+                        if prevStepName in distributeDict:
+                            # prev:name의 과정이 distribute training 이라면
+                            for i in range(1, distributeDict[prevStepName] + 1):
+                                newTags.append(t + str(i))
+                                # prev:name 태그들을 번호 붙여서 복제한다.
+                        else:
+                            newTags.append(t)
+                    else:
+                        newTags.append(t)
+                # 태그 업데이트
+                c.metadata['tags'] = newTags
+
+            # 모든 셀들에 대해 prev 태그 수정 및 복제 완료
+            # 새로운 셀 리스트를 만들어서, 셀들을 재구성하여 저장
+            # 셀 복제 시 block:name 태그 수정도 필요
+            # 셀 복제 시 y = copy.deepcopy(x) 사용하여야 함 (import copy)
+            newCells = list()
+            for c in self.notebook.cells:
+                if not ((c.cell_type == "code")
+                        and ('tags' in c.metadata)
+                        and (len(c.metadata['tags']) > 0)
+                        and (any(re.match(DISTRIBUTE_TAG, t)
+                                 for t in c.metadata['tags']))):
+                    # 이 셀이 코드 셀이 아니거나 prev:name 태그가 없으면 수정이 필요 없음
+                    newCells.append(c)
+                    continue
+
+                # 여기까지 통과한 셀은 distribute 셀이므로
+                # 복제 후 block:name 태그 수정 필요
+                distributeStepTag = '' # 의미 없는 초기값, 아래에서 수정
+                distributeStepName = '' # 의미 없는 초기값, 아래에서 수정
+                numWorkers = 0 # 의미 없는 초기값, 아래에서 수정
+                for t in c.metadata['tags']:
+                    if (re.match(BLOCK_TAG, t)):
+                        # block:name 태그를 찾음
+                        distributeStepTag = t
+                        distributeStepName = t.split(':').pop(1)
+                        numWorkers = distributeDict[distributeStepName]
+                        # name과 worker 개수를 결정함
+                        # block:name 태그는 유일하므로 하나 찾았으면 break
+                        break
+                for i in range(1, numWorkers + 1):
+                    # 셀 사본 생성, 원본 태그 제거, 번호 붙인 태그 삽입
+                    _c = copy.deepcopy(c)
+                    _c.metadata['tags'].remove(distributeStepTag)
+                    _c.metadata['tags'].append(distributeStepTag + str(i))
+                    newCells.append(_c)
+            # 셀 업데이트
+            self.notebook.cells = newCells
 
         for c in self.notebook.cells:
             if c.cell_type != "code":
