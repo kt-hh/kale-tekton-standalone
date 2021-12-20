@@ -83,35 +83,6 @@ _kale_kfp_metrics = {
 _kale_kfputils.generate_mlpipeline_metrics(_kale_kfp_metrics)\
 '''
 
-SET_TF_CONFIG = '''
-NUM_WORKERS = @@NUM_WORKERS@@
-port = @@PORT@@
-workerIndex = 0
-if not os.path.isfile("/marshal/tfConfigIP.json"):
-    with open("/marshal/tfConfigIP.json", "w") as json_file:
-        json.dump({"IP":[os.popen("hostname -I").read().rstrip() + ":" + port]}, json_file, ensure_ascii = False)
-else:
-    with open("/marshal/tfConfigIP.json", "r") as json_file:
-        json_data = json.load(json_file)
-        json_data['IP'].append(os.popen("hostname -I").read().rstrip() + ":" + port)
-    with open("/marshal/tfConfigIP.json", "w") as json_save:
-        json.dump(json_data, json_save)
-        workerIndex = len(json_data['IP'])-1
-while True:
-    with open("/marshal/tfConfigIP.json", "r") as ip_file:
-        ip_data = json.load(ip_file)
-        if len(ip_data['IP']) < NUM_WORKERS:
-            time.sleep(3)
-        else:
-            os.environ['TF_CONFIG'] = json.dumps({
-                'cluster': {'worker': ip_data['IP']},
-                'task': {'type': 'worker', 'index': workerIndex}
-            })
-            break
-'''
-
-
-
 def get_annotation_or_label_from_tag(tag_parts):
     """Get the key and value from an annotation or label tag.
 
@@ -322,6 +293,33 @@ class NotebookProcessor(BaseProcessor):
                     break
             # 셀의 소스에 TF_CONFIG 세팅하는 코드를 (line 단위로 쪼갠 리스트 형태로) 붙여준다.
             # NUM_WORKERS와 PORT도 설정해준다.
+            
+            SET_TF_CONFIG = '''
+NUM_WORKERS = @@NUM_WORKERS@@
+port = @@PORT@@
+workerIndex = 0
+if not os.path.isfile("/marshal/tfConfigIP.json"):
+    with open("/marshal/tfConfigIP.json", "w") as json_file:
+        json.dump({"IP":[os.popen("hostname -I").read().rstrip() + ":" + port]}, json_file, ensure_ascii = False)
+else:
+    with open("/marshal/tfConfigIP.json", "r") as json_file:
+        json_data = json.load(json_file)
+        json_data['IP'].append(os.popen("hostname -I").read().rstrip() + ":" + port)
+    with open("/marshal/tfConfigIP.json", "w") as json_save:
+        json.dump(json_data, json_save)
+        workerIndex = len(json_data['IP'])-1
+while True:
+    with open("/marshal/tfConfigIP.json", "r") as ip_file:
+        ip_data = json.load(ip_file)
+        if len(ip_data['IP']) < NUM_WORKERS:
+            time.sleep(3)
+        else:
+            os.environ['TF_CONFIG'] = json.dumps({
+                'cluster': {'worker': ip_data['IP']},
+                'task': {'type': 'worker', 'index': workerIndex}
+            })
+            break
+'''
             SET_TF_CONFIG = SET_TF_CONFIG.replace('@@NUM_WORKERS@@', numWorkersStr)
             SET_TF_CONFIG = SET_TF_CONFIG.replace('@@PORT@@', '12345')
             # SET_TF_CONFIG 안에 worker 개수를 대입해주는 것도 필요하다.
