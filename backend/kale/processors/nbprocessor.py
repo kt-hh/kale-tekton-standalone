@@ -323,8 +323,9 @@ while True:
             SET_TF_CONFIG = SET_TF_CONFIG.replace('@@NUM_WORKERS@@', numWorkersStr)
             SET_TF_CONFIG = SET_TF_CONFIG.replace('@@PORT@@', '12345')
             # SET_TF_CONFIG 안에 worker 개수를 대입해주는 것도 필요하다.
-            SET_TF_CONFIG_LIST = [x + '\n' for x in SET_TF_CONFIG.split('\n')]
-            c.source = SET_TF_CONFIG_LIST + c.source
+            # SET_TF_CONFIG_LIST = [x + '\n' for x in SET_TF_CONFIG.split('\n')]
+            # c.source = SET_TF_CONFIG_LIST + c.source
+            c.source = SET_TF_CONFIG + c.source
 
         # 노트북의 모든 셀들에 대해 loop 종료
         # 모든 distribute 셀에 TF_CONFIG 세팅 코드 삽입 완료
