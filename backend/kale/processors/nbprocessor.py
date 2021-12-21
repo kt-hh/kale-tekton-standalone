@@ -298,30 +298,32 @@ class NotebookProcessor(BaseProcessor):
 import json
 import os
 import time
-NUM_WORKERS = @@NUM_WORKERS@@
-port = @@PORT@@
+_NUM_WORKERS = @@NUM_WORKERS@@
+_PORT = @@PORT@@
 workerIndex = 0
 if not os.path.isfile("/marshal/tfConfigIP.json"):
-    with open("/marshal/tfConfigIP.json", "w") as json_file:
-        json.dump({"IP":[os.popen("hostname -I").read().rstrip() + ":" + str(port)]}, json_file, ensure_ascii = False)
+    with open("/marshal/tfConfigIP.json", "w", encoding='UTF-8') as json_file:
+        json.dump({"IP":[os.popen("hostname -I").read().rstrip()+":"+str(_PORT)]}, json_file, ensure_ascii=False)
 else:
-    with open("/marshal/tfConfigIP.json", "r") as json_file:
+    with open("/marshal/tfConfigIP.json", "r", encoding='UTF-8') as json_file:
         json_data = json.load(json_file)
-        json_data['IP'].append(os.popen("hostname -I").read().rstrip() + ":" + str(port))
+        json_data['IP'].append(os.popen("hostname -I").read().rstrip()+":"+str(_PORT))
     with open("/marshal/tfConfigIP.json", "w") as json_save:
         json.dump(json_data, json_save)
         workerIndex = len(json_data['IP'])-1
 while True:
-    with open("/marshal/tfConfigIP.json", "r") as ip_file:
-        ip_data = json.load(ip_file)
-        if len(ip_data['IP']) < NUM_WORKERS:
+    with open("/marshal/tfConfigIP.json", "r", encoding='UTF-8') as json_file:
+        ip_data = json.load(json_file)
+        if len(ip_data['IP']) < _NUM_WORKERS:
             time.sleep(3)
-        else:
+        elif len(ip_data['IP']) == _NUM_WORKERS:
             os.environ['TF_CONFIG'] = json.dumps({
                 'cluster': {'worker': ip_data['IP']},
                 'task': {'type': 'worker', 'index': workerIndex}
             })
             break
+        else:
+            raise ValueError("TF_CONFIG has more IPs than NUM_WORKERS!")
 '''
             SET_TF_CONFIG = SET_TF_CONFIG.replace('@@NUM_WORKERS@@', numWorkersStr)
             SET_TF_CONFIG = SET_TF_CONFIG.replace('@@PORT@@', '12345')
