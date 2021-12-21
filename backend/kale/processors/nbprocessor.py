@@ -303,11 +303,11 @@ port = @@PORT@@
 workerIndex = 0
 if not os.path.isfile("/marshal/tfConfigIP.json"):
     with open("/marshal/tfConfigIP.json", "w") as json_file:
-        json.dump({"IP":[os.popen("hostname -I").read().rstrip() + ":" + port]}, json_file, ensure_ascii = False)
+        json.dump({"IP":[os.popen("hostname -I").read().rstrip() + ":" + str(port)]}, json_file, ensure_ascii = False)
 else:
     with open("/marshal/tfConfigIP.json", "r") as json_file:
         json_data = json.load(json_file)
-        json_data['IP'].append(os.popen("hostname -I").read().rstrip() + ":" + port)
+        json_data['IP'].append(os.popen("hostname -I").read().rstrip() + ":" + str(port))
     with open("/marshal/tfConfigIP.json", "w") as json_save:
         json.dump(json_data, json_save)
         workerIndex = len(json_data['IP'])-1
