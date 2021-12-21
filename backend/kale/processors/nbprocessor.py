@@ -295,6 +295,9 @@ class NotebookProcessor(BaseProcessor):
             # NUM_WORKERS와 PORT도 설정해준다.
             
             SET_TF_CONFIG = '''
+import json
+import os
+import time
 NUM_WORKERS = @@NUM_WORKERS@@
 port = @@PORT@@
 workerIndex = 0
