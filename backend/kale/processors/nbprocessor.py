@@ -300,30 +300,66 @@ import os
 import time
 _NUM_WORKERS = @@NUM_WORKERS@@
 _PORT = @@PORT@@
-workerIndex = 0
+_WORKER_INDEX = @@WORKER_INDEX@@
+
 if not os.path.isfile("/marshal/tfConfigIP.json"):
+    print('creating json file...')
     with open("/marshal/tfConfigIP.json", "w", encoding='UTF-8') as json_file:
-        json.dump({"IP":[os.popen("hostname -I").read().rstrip()+":"+str(_PORT)]}, json_file, ensure_ascii=False)
-else:
-    with open("/marshal/tfConfigIP.json", "r", encoding='UTF-8') as json_file:
-        json_data = json.load(json_file)
-        json_data['IP'].append(os.popen("hostname -I").read().rstrip()+":"+str(_PORT))
-    with open("/marshal/tfConfigIP.json", "w") as json_save:
-        json.dump(json_data, json_save)
-        workerIndex = len(json_data['IP'])-1
+        json.dump({"IP":[]}, json_file, ensure_ascii=False)
+    print('created json file.')
+
+while True:
+    try:
+        while True:
+            with open("/marshal/tfConfigIP.json", "r", encoding='UTF-8') as json_file:
+                print('opening json file...')
+                json_data = json.load(json_file)
+                if(len(json_data['IP']) < _WORKER_INDEX):
+                    print('ip list = ')
+                    print(json_data['IP'])
+                    print('worker index = ' + str(_WORKER_INDEX) + ' ...waiting...')
+                    time.sleep(3)
+                    continue
+                if(len(json_data['IP']) == _WORKER_INDEX):
+                    print('ip list = ')
+                    print(json_data['IP'])
+                    print('worker index = ' + str(_WORKER_INDEX) + ' setting')
+                    json_data['IP'].append(os.popen("hostname -I").read().rstrip()+":"+str(_PORT))
+                    print('updated ip list = ')
+                    print(json_data['IP'])
+                    break
+        with open("/marshal/tfConfigIP.json", "w", encoding='UTF-8') as json_save:
+            print('saving ip list...')
+            json.dump(json_data, json_save)
+            print('saved ip list.')
+        break
+    except:
+        print('exception in first loop')
+        time.sleep(3)
+        continue
+
 while True:
     with open("/marshal/tfConfigIP.json", "r", encoding='UTF-8') as json_file:
-        ip_data = json.load(json_file)
-        if len(ip_data['IP']) < _NUM_WORKERS:
+        json_data = json.load(json_file)
+        print('json data loaded')
+        if len(json_data['IP']) < _NUM_WORKERS:
+            print('ip list = ')
+            print(json_data['IP'])
+            print('num_workers = ' + str(_NUM_WORKERS) + ' ...waiting...')
             time.sleep(3)
-        elif len(ip_data['IP']) == _NUM_WORKERS:
+            continue
+        if len(json_data['IP']) == _NUM_WORKERS:
+            print('ip list = ')
+            print(json_data['IP'])
+            print('num_workers = ' + str(_NUM_WORKERS) + ' setting')
             os.environ['TF_CONFIG'] = json.dumps({
-                'cluster': {'worker': ip_data['IP']},
-                'task': {'type': 'worker', 'index': workerIndex}
+                'cluster': {'worker': json_data['IP']},
+                'task': {'type': 'worker', 'index': _WORKER_INDEX}
             })
+            print('TF_CONFIG = ')
+            print(os.getenv('TF_CONFIG'))
             break
-        else:
-            raise ValueError("TF_CONFIG has more IPs than NUM_WORKERS!")
+
 '''
             SET_TF_CONFIG = SET_TF_CONFIG.replace('@@NUM_WORKERS@@', numWorkersStr)
             SET_TF_CONFIG = SET_TF_CONFIG.replace('@@PORT@@', '12345')
@@ -331,6 +367,7 @@ while True:
             # SET_TF_CONFIG_LIST = [x + '\n' for x in SET_TF_CONFIG.split('\n')]
             # c.source = SET_TF_CONFIG_LIST + c.source
             c.source = SET_TF_CONFIG + c.source
+            # 알고 보니 c.source가 list가 아니라 string이다.
 
         # 노트북의 모든 셀들에 대해 loop 종료
         # 모든 distribute 셀에 TF_CONFIG 세팅 코드 삽입 완료
@@ -393,6 +430,7 @@ while True:
 
                 # 여기까지 통과한 셀은 distribute 셀이므로
                 # 복제 후 block:name 태그 수정 필요
+                # 코드에 worker index 삽입 필요
                 distributeStepTag = '' # 의미 없는 초기값, 아래에서 수정
                 distributeStepName = '' # 의미 없는 초기값, 아래에서 수정
                 numWorkers = 0 # 의미 없는 초기값, 아래에서 수정
@@ -410,6 +448,7 @@ while True:
                     _c = copy.deepcopy(c)
                     _c.metadata['tags'].remove(distributeStepTag)
                     _c.metadata['tags'].append(distributeStepTag + str(i))
+                    _c.source = _c.source.replace('@@WORKER_INDEX@@', str(i-1))
                     newCells.append(_c)
             # 셀 업데이트
             self.notebook.cells = newCells
