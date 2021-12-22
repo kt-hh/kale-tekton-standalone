@@ -295,69 +295,68 @@ class NotebookProcessor(BaseProcessor):
             # NUM_WORKERS와 PORT도 설정해준다.
             
             SET_TF_CONFIG = '''
-import json
 import os
 import time
-_NUM_WORKERS = @@NUM_WORKERS@@
-_PORT = @@PORT@@
-_WORKER_INDEX = @@WORKER_INDEX@@
+import json
+
+print("TF_CONFIG must be set to use MultiWorkerMirroredStrategy.")
 
 if not os.path.isfile("/marshal/tfConfigIP.json"):
-    print('creating json file...')
-    with open("/marshal/tfConfigIP.json", "w", encoding='UTF-8') as json_file:
+    print("Creating json file for workers' IP list...")
+    with open("/marshal/tfConfigIP.json", "w", encoding="UTF-8") as json_file:
         json.dump({"IP":[]}, json_file, ensure_ascii=False)
-    print('created json file.')
 
 while True:
     try:
         while True:
-            with open("/marshal/tfConfigIP.json", "r", encoding='UTF-8') as json_file:
-                print('opening json file...')
+            print("Opening json file for workers' IP list...")
+            with open("/marshal/tfConfigIP.json", "r", encoding="UTF-8") as json_file:
                 json_data = json.load(json_file)
-                if(len(json_data['IP']) < _WORKER_INDEX):
-                    print('ip list = ')
-                    print(json_data['IP'])
-                    print('worker index = ' + str(_WORKER_INDEX) + ' ...waiting...')
+                if(len(json_data["IP"]) < @@WORKER_INDEX@@):
+                    print("Workers' IP list = ")
+                    print(json_data["IP"])
+                    print("This worker's index = " + str(@@WORKER_INDEX@@) + "... Waiting for this worker's turn...")
                     time.sleep(3)
                     continue
-                if(len(json_data['IP']) == _WORKER_INDEX):
-                    print('ip list = ')
-                    print(json_data['IP'])
-                    print('worker index = ' + str(_WORKER_INDEX) + ' setting')
-                    json_data['IP'].append(os.popen("hostname -I").read().rstrip()+":"+str(_PORT))
-                    print('updated ip list = ')
-                    print(json_data['IP'])
+                if(len(json_data["IP"]) == @@WORKER_INDEX@@):
+                    print("Workers' IP list = ")
+                    print(json_data["IP"])
+                    print("This worker's index = " + str(@@WORKER_INDEX@@) + ".")
+                    print("Now setting IP for this worker...")
+                    json_data["IP"].append(os.popen("hostname -I").read().rstrip()+":"+str(@@PORT@@))
+                    print("Updated workers' IP list = ")
+                    print(json_data["IP"])
                     break
-        with open("/marshal/tfConfigIP.json", "w", encoding='UTF-8') as json_save:
-            print('saving ip list...')
+        print("Saving workers' IP list...")
+        with open("/marshal/tfConfigIP.json", "w", encoding="UTF-8") as json_save:
             json.dump(json_data, json_save)
-            print('saved ip list.')
         break
     except:
-        print('exception in first loop')
+        print("Something went wrong! Will try again...")
         time.sleep(3)
         continue
 
 while True:
-    with open("/marshal/tfConfigIP.json", "r", encoding='UTF-8') as json_file:
+    print("Loading json file for workers' IP list to set TF_CONFIG...")
+    with open("/marshal/tfConfigIP.json", "r", encoding="UTF-8") as json_file:
         json_data = json.load(json_file)
-        print('json data loaded')
-        if len(json_data['IP']) < _NUM_WORKERS:
-            print('ip list = ')
-            print(json_data['IP'])
-            print('num_workers = ' + str(_NUM_WORKERS) + ' ...waiting...')
+        if len(json_data["IP"]) < @@NUM_WORKERS@@:
+            print("Workers' IP list = ")
+            print(json_data["IP"])
+            print("Total number of workers must reach " + str(@@NUM_WORKERS@@) + "... Waiting...")
             time.sleep(3)
             continue
-        if len(json_data['IP']) == _NUM_WORKERS:
-            print('ip list = ')
-            print(json_data['IP'])
-            print('num_workers = ' + str(_NUM_WORKERS) + ' setting')
-            os.environ['TF_CONFIG'] = json.dumps({
-                'cluster': {'worker': json_data['IP']},
-                'task': {'type': 'worker', 'index': _WORKER_INDEX}
+        if len(json_data["IP"]) == @@NUM_WORKERS@@:
+            print("Workers' IP list = ")
+            print(json_data["IP"])
+            print("Total number of workers has now reached " + str(@@NUM_WORKERS@@) + ".")
+            print("Now setting TF_CONFIG to this worker...")
+            os.environ["TF_CONFIG"] = json.dumps({
+                "cluster": {"worker": json_data["IP"]},
+                "task": {"type": "worker", "index": @@WORKER_INDEX@@}
             })
-            print('TF_CONFIG = ')
-            print(os.getenv('TF_CONFIG'))
+            print("The value of TF_CONFIG is set to: ")
+            print(os.getenv("TF_CONFIG"))
             break
 
 '''
