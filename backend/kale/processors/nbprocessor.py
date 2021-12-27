@@ -337,27 +337,32 @@ while True:
         continue
 
 while True:
-    print("Loading json file for workers' IP list to set TF_CONFIG...")
-    with open("/marshal/tfConfigIP.json", "r", encoding="UTF-8") as json_file:
-        json_data = json.load(json_file)
-        if len(json_data["IP"]) < @@NUM_WORKERS@@:
-            print("Workers' IP list = ")
-            print(json_data["IP"])
-            print("Total number of workers must reach " + str(@@NUM_WORKERS@@) + "... Waiting...")
-            time.sleep(3)
-            continue
-        if len(json_data["IP"]) == @@NUM_WORKERS@@:
-            print("Workers' IP list = ")
-            print(json_data["IP"])
-            print("Total number of workers has now reached " + str(@@NUM_WORKERS@@) + ".")
-            print("Now setting TF_CONFIG to this worker...")
-            os.environ["TF_CONFIG"] = json.dumps({
-                "cluster": {"worker": json_data["IP"]},
-                "task": {"type": "worker", "index": @@WORKER_INDEX@@}
-            })
-            print("The value of TF_CONFIG is set to: ")
-            print(os.getenv("TF_CONFIG"))
-            break
+    try:
+        print("Loading json file for workers' IP list to set TF_CONFIG...")
+        with open("/marshal/tfConfigIP.json", "r", encoding="UTF-8") as json_file:
+            json_data = json.load(json_file)
+            if len(json_data["IP"]) < @@NUM_WORKERS@@:
+                print("Workers' IP list = ")
+                print(json_data["IP"])
+                print("Total number of workers must reach " + str(@@NUM_WORKERS@@) + "... Waiting...")
+                time.sleep(3)
+                continue
+            if len(json_data["IP"]) == @@NUM_WORKERS@@:
+                print("Workers' IP list = ")
+                print(json_data["IP"])
+                print("Total number of workers has now reached " + str(@@NUM_WORKERS@@) + ".")
+                print("Now setting TF_CONFIG to this worker...")
+                os.environ["TF_CONFIG"] = json.dumps({
+                    "cluster": {"worker": json_data["IP"]},
+                    "task": {"type": "worker", "index": @@WORKER_INDEX@@}
+                })
+                print("The value of TF_CONFIG is set to: ")
+                print(os.getenv("TF_CONFIG"))
+                break
+    except:
+        print("Something went wrong! Will try again...")
+        time.sleep(3)
+        continue
 
 '''
             SET_TF_CONFIG = SET_TF_CONFIG.replace('@@NUM_WORKERS@@', numWorkersStr)
