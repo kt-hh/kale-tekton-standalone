@@ -48,8 +48,10 @@ WORKDIR /kale-tekton-standalone/backend
 RUN pip3 install --upgrade .
 RUN pip3 install "kfp-tekton==1.0.0"
 RUN pip3 install "tekton-pipeline==0.1.3"
-# kfserving version upgrade
-RUN pip3 install --upgrade "kfserving==0.5.1"
+RUN pip3 install --upgrade "fairing==1.0.2"
+RUN pip3 install --upgrade "kfserving==0.6.1"
+RUN pip3 install --upgrade "ray==1.4.0"
+RUN pip3 install --upgrade "cloudpickle==2.0.0"
 RUN pip3 install --upgrade "kubernetes"
 
 WORKDIR /kale-tekton-standalone/labextension
