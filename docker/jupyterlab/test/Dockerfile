@@ -53,6 +53,7 @@ RUN pip3 install --upgrade "kfserving==0.6.1"
 RUN pip3 install --upgrade "ray==1.4.0"
 RUN pip3 install --upgrade "cloudpickle==2.0.0"
 RUN pip3 install --upgrade "kubernetes"
+RUN pip3 install --upgrade "msrestazure==0.6.4"
 
 WORKDIR /kale-tekton-standalone/labextension
 RUN jlpm install && \
