@@ -236,6 +236,9 @@ export class InlineCellsMetadata extends React.Component<IProps, IState> {
         tags = {
           blockName: '',
           prevBlockNames: [],
+          distribute: '',
+          numWorkers: '',
+          numParameterServers: '',
         };
       }
       let previousBlockName = '';
@@ -251,7 +254,11 @@ export class InlineCellsMetadata extends React.Component<IProps, IState> {
         stepName: tags.blockName || '',
         stepDependencies: tags.prevBlockNames || [],
         limits: tags.limits || {},
+        distribute: tags.distribute || '',
+        numWorkers: tags.numWorkers || '',
+        numParameterServers: tags.numParameterServers || '',
       };
+      // console.log(editors[index]);
       metadata.push(
         <InlineMetadata
           key={index}
@@ -259,10 +266,14 @@ export class InlineCellsMetadata extends React.Component<IProps, IState> {
           blockName={tags.blockName}
           stepDependencies={tags.prevBlockNames}
           limits={tags.limits || {}}
+          distribute={tags.distribute}
+          numWorkers={tags.numWorkers}
+          numParameterServers={tags.numParameterServers}
           previousBlockName={previousBlockName}
           cellIndex={index}
         />,
       );
+      // console.log(metadata);
     }
 
     this.setState({
@@ -310,6 +321,9 @@ export class InlineCellsMetadata extends React.Component<IProps, IState> {
               stepName={editorProps.stepName}
               stepDependencies={editorProps.stepDependencies}
               limits={editorProps.limits}
+              distribute={editorProps.distribute}
+              numWorkers={editorProps.numWorkers}
+              numParameterServers={editorProps.numParameterServers}
             />
             {this.state.metadataCmp}
           </CellMetadataContext.Provider>

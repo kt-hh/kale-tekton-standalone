@@ -23,6 +23,9 @@ interface IKaleCellTags {
   blockName: string;
   prevBlockNames: string[];
   limits?: { [id: string]: string };
+  distribute: string;
+  numParameterServers: string;
+  numWorkers: string;
 }
 
 /** Contains utility functions for manipulating/handling Kale cell tags. */
@@ -108,10 +111,23 @@ export default class TagsUtils {
           // get the limit key and value
           limits[values[1]] = values[2];
         });
+
+      let distribute = tags
+        .filter(v => v.startsWith('distribute:'));
+
+      let numWorkers = tags
+        .filter(v => v.startsWith('numWorkers:'));
+
+      let numParameterServers = tags
+        .filter(v => v.startsWith('numParameterServers:'));
+
       return {
         blockName: b_name[0],
         prevBlockNames: prevs,
         limits: limits,
+        distribute: distribute[0] || '',
+        numWorkers: numWorkers[0] || '',
+        numParameterServers: numParameterServers[0] || '',
       };
     }
     return null;
@@ -130,6 +146,8 @@ export default class TagsUtils {
     metadata: IKaleCellTags,
     save: boolean,
   ): Promise<any> {
+    // console.log('setKaleCellTags');
+    // console.log(metadata);
     // make the dict to save to tags
     let nb = metadata.blockName;
     // not a reserved name
@@ -138,12 +156,24 @@ export default class TagsUtils {
     }
     const stepDependencies = metadata.prevBlockNames || [];
     const limits = metadata.limits || {};
+    const distribute = metadata.distribute || '';
+    const numWorkers = metadata.numWorkers || '';
+    const numParameterServers = metadata.numParameterServers || '';
     const tags = [nb]
       .concat(stepDependencies.map(v => 'prev:' + v))
       .concat(
         Object.keys(limits).map(lim => 'limit:' + lim + ':' + limits[lim]),
       );
-
+    if (distribute !== '') {
+      tags.push(distribute);
+      if (numWorkers !== '') {
+        tags.push(numWorkers);
+      }
+      if (numParameterServers !== ''){
+        tags.push(numParameterServers);
+      }
+    }
+    // console.log(tags)
     return CellUtils.setCellMetaData(notebookPanel, index, 'tags', tags, save);
   }
 
@@ -210,6 +240,9 @@ export default class TagsUtils {
     let cellMetadata = {
       prevBlockNames: previousBlocks,
       blockName: value,
+      distribute: '',
+      numWorkers: '',
+      numParameterServers: '',
     };
     TagsUtils.setKaleCellTags(
       notebook,

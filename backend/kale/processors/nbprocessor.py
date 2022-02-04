@@ -52,9 +52,12 @@ LABEL_TAG = r'^label:%s:(.*)$' % K8S_ANNOTATION_KEY
 # E.g.: limit:nvidia.com/gpu:2
 LIMITS_TAG = r'^limit:([_a-z-\.\/]+):([_a-zA-Z0-9\.]+)$'
 
-# TODO: 태그 추가
-DISTRIBUTE_TAG = r'^distribute$'
-WORKERS_TAG = r'^workers:[1-9][0-9]*$'
+# 태그 추가
+DISTRIBUTE_TAG = r'^distribute:[a-zA-Z]+$'
+MULTI_WORKER_MIRRORED_STRATEGY_TAG = r'^distribute:MultiWorkerMirroredStrategy$'
+PARAMETER_SERVER_STRATEGY_TAG = r'^distribute:ParameterServerStrategy$'
+PARAMETER_SERVERS_TAG = r'^numParameterServers:[1-9][0-9]*$'
+WORKERS_TAG = r'^numWorkers:[1-9][0-9]*$'
 
 _TAGS_LANGUAGE = [SKIP_TAG,
                   IMPORT_TAG,
@@ -68,6 +71,9 @@ _TAGS_LANGUAGE = [SKIP_TAG,
                   LABEL_TAG,
                   LIMITS_TAG,
                   DISTRIBUTE_TAG,
+                  MULTI_WORKER_MIRRORED_STRATEGY_TAG,
+                  PARAMETER_SERVER_STRATEGY_TAG,
+                  PARAMETER_SERVERS_TAG,
                   WORKERS_TAG]
 # These tags are applied to every step of the pipeline
 _STEPS_DEFAULTS_LANGUAGE = [ANNOTATION_TAG,
@@ -245,56 +251,70 @@ class NotebookProcessor(BaseProcessor):
         # Variables that will become pipeline metrics
         pipeline_metrics = list()
 
-        ### distribute training 여부 확인하고 전처리해주는 과정 ###
+        ### Multi Worker Mirrored Strategy 또는 Parameter Server Strategy 사용 여부 확인하고 전처리해주는 과정 ###
 
-        # 먼저, 이 노트북에 distribute 셀이 있다면 dict를 만들어 "이름:worker개수" 들을 저장한다.
-
-        isDistribute = False # 해당 노트북에 distribute cell이 있는지 판단
-        distributeDict = dict() # 이 노트북 속 distribute cell들의 name과 worker 개수 저장
+        # 먼저, 이 노트북에 위 Strategy 중 하나를 사용하는 셀이 있다면 dict를 만들어 "이름:worker개수" 들을 저장한다.
+        isDistribute = False
+        isMultiWorkerMirroredStrategy = False # 해당 노트북에 multi worker cell이 있는지 판단
+        isParameterServerStragety = False  # 해당 노트북에 parameter server cell이 있는지 판단
+        parameterServersDict = dict()
+        workersDict = dict() # 이 노트북 속 multi worker cell들의 name과 worker 개수 저장
 
         for c in self.notebook.cells:
             if not ((c.cell_type == "code")
                     and ('tags' in c.metadata)
                     and (len(c.metadata['tags']) > 0)
-                    and (any(re.match(DISTRIBUTE_TAG, t)
-                         for t in c.metadata['tags']))):
+                    and ((any(re.match(DISTRIBUTE_TAG, t) for t in c.metadata['tags'])))
+                            # (any(re.match(MULTI_WORKER_MIRRORED_STRATEGY_TAG, t)
+                            #      for t in c.metadata['tags']))
+                            # or
+                            # (any(re.match(PARAMETER_SERVER_STRATEGY_TAG, t)
+                            #      for t in c.metadata['tags']))
+                    ):
                 # 이 셀이 코드 셀이 아니거나 distribute 태그가 없으면 이 과정이 필요 없음
                 continue
 
-            # 해당 셀이 코드 셀이고 distribute 태그가 있는 상황 보장됨
-            # block:name 태그가 없거나 workers:n 태그가 없으면 에러
-            # c.metadata = {"tags":["block:first","prev:data","prev:variables","workers:3","distribute"]}
-            if (not (any(re.match(BLOCK_TAG, t)
-                         for t in c.metadata['tags']))):
-                raise ValueError('"distribute" tag must be used with "block:name" tag.')
-            if (not (any(re.match(WORKERS_TAG, t)
-                         for t in c.metadata['tags']))):
-                raise ValueError('"distribute" tag must be used with "workers:n" tag, where n is a positive integer.')
-            if (sum(bool(re.match(WORKERS_TAG, t)) for t in c.metadata['tags']) > 1):
-                raise ValueError('"workers:n" tag must be unique.')
+            if(any(re.match(MULTI_WORKER_MIRRORED_STRATEGY_TAG, t) for t in c.metadata['tags'])):
+                # 해당 셀이 코드 셀이고 MultiWorkerMirroredStrategy 태그가 있는 상황 보장됨
+                # block:name 태그가 없거나 numWorkers:n 태그가 없으면 에러
+                # c.metadata = {"tags":["block:first","prev:data","prev:variables","workers:3","MultiWorkerMirroredStrategy"]}
+                if (not (any(re.match(BLOCK_TAG, t)
+                            for t in c.metadata['tags']))):
+                    raise ValueError('"MultiWorkerMirroredStrategy" tag must be used with "block:name" tag.')
+                if (any(re.match(PARAMETER_SERVER_STRATEGY_TAG, t)
+                            for t in c.metadata['tags'])):
+                    raise ValueError('"MultiWorkerMirroredStrategy" tag cannot be used with "ParameterServerStrategy" tag.')
+                if (any(re.match(PARAMETER_SERVERS_TAG, t)
+                            for t in c.metadata['tags'])):
+                    raise ValueError('"MultiWorkerMirroredStrategy" tag cannot be used with "numParameterServers:n" tag.')
+                if (not (any(re.match(WORKERS_TAG, t)
+                            for t in c.metadata['tags']))):
+                    raise ValueError('"MultiWorkerMirroredStrategy" tag must be used with "numWorkers:n" tag, where n is a positive integer.')
+                if (sum(bool(re.match(WORKERS_TAG, t)) for t in c.metadata['tags']) > 1):
+                    raise ValueError('"numWorkers:n" tag must be unique.')
 
-            # 해당 셀에 distribute, block:name, workers:n 태그가 모두 있는 상황 보장됨
-            # notebook의 dict에 해당 cell 정보 추가
-            # {} -> {"first":3} -> {"first":3, "second":4} -> ...
-            isDistribute = True # 추후에 다시 셀들을 순회하면서 수정할 때 사용하기 위한 플래그
-            numWorkersStr = '0' # 의미 없는 초기값, 아래에서 수정될 것
-            for t in c.metadata['tags']:
-                if (re.match(BLOCK_TAG, t)):
-                    # 태그를 순회하며 block:name 태그를 찾음
-                    # block 태그는 유일할 것이므로 필요한 작업 끝나면 break
-                    distributeStepName = t.split(':').pop(1)
-                    for _t in c.metadata['tags']:
-                        if (re.match(WORKERS_TAG, _t)):
-                            # 태그를 다시 처음부터 순회하며 workers:n 태그를 찾음
-                            # workers:n 태그는 유일할 것이므로 필요한 작업 끝나면 break
-                            numWorkersStr = _t.split(':').pop(1)
-                            distributeDict[distributeStepName] = int(numWorkersStr)
-                            break
-                    break
-            # 셀의 소스에 TF_CONFIG 세팅하는 코드를 (line 단위로 쪼갠 리스트 형태로) 붙여준다.
-            # NUM_WORKERS와 PORT도 설정해준다.
-            
-            SET_TF_CONFIG = '''
+                # 해당 셀에 MultiWorkerMirroredStrategy, block:name, numWorkers:n 태그가 모두 있는 상황 보장됨
+                # notebook의 multi worker dict에 해당 cell 정보 추가
+                # {} -> {"first":3} -> {"first":3, "second":4} -> ...
+                isMultiWorkerMirroredStrategy = True # 추후에 다시 셀들을 순회하면서 수정할 때 사용하기 위한 플래그
+                numWorkersStr = '0' # 의미 없는 초기값, 아래에서 수정될 것
+                for t in c.metadata['tags']:
+                    if (re.match(BLOCK_TAG, t)):
+                        # 태그를 순회하며 block:name 태그를 찾음
+                        # block 태그는 유일할 것이므로 필요한 작업 끝나면 break
+                        stepName = t.split(':').pop(1)
+                        for _t in c.metadata['tags']:
+                            if (re.match(WORKERS_TAG, _t)):
+                                # 태그를 다시 처음부터 순회하며 numWorkers:n 태그를 찾음
+                                # numWorkers:n 태그는 유일할 것이므로 필요한 작업 끝나면 break
+                                numWorkersStr = _t.split(':').pop(1)
+                                workersDict[stepName] = int(numWorkersStr)
+                                break
+                        break
+
+                # 셀의 소스에 TF_CONFIG 세팅하는 코드를 붙여준다.
+                # NUM_WORKERS와 PORT도 설정해준다.
+                SET_TF_CONFIG_FOR_MULTI_WORKER_MIRRORED_STRATEGY = '''
 import os
 import time
 import json
@@ -365,29 +385,23 @@ while True:
         continue
 
 '''
-            SET_TF_CONFIG = SET_TF_CONFIG.replace('@@NUM_WORKERS@@', numWorkersStr)
-            SET_TF_CONFIG = SET_TF_CONFIG.replace('@@PORT@@', '12345')
-            # SET_TF_CONFIG 안에 worker 개수를 대입해주는 것도 필요하다.
-            # SET_TF_CONFIG_LIST = [x + '\n' for x in SET_TF_CONFIG.split('\n')]
-            # c.source = SET_TF_CONFIG_LIST + c.source
-            c.source = SET_TF_CONFIG + c.source
-            # 알고 보니 c.source가 list가 아니라 string이다.
+                SET_TF_CONFIG_FOR_MULTI_WORKER_MIRRORED_STRATEGY = SET_TF_CONFIG_FOR_MULTI_WORKER_MIRRORED_STRATEGY.replace('@@NUM_WORKERS@@', numWorkersStr)
+                SET_TF_CONFIG_FOR_MULTI_WORKER_MIRRORED_STRATEGY = SET_TF_CONFIG_FOR_MULTI_WORKER_MIRRORED_STRATEGY.replace('@@PORT@@', '12345')
+                # SET_TF_CONFIG 안에 worker 개수를 대입해주는 것도 필요하다.
+                # SET_TF_CONFIG_LIST = [x + '\n' for x in SET_TF_CONFIG.split('\n')]
+                # c.source = SET_TF_CONFIG_LIST + c.source
+                c.source = SET_TF_CONFIG_FOR_MULTI_WORKER_MIRRORED_STRATEGY + c.source
+                # 알고보니 c.source가 list가 아니라 string이다...
 
-        # 노트북의 모든 셀들에 대해 loop 종료
-        # 모든 distribute 셀에 TF_CONFIG 세팅 코드 삽입 완료
-        # dict에 name과 worker수 저장 완료 {"first":3, "second":4}
+            # 노트북의 모든 셀들에 대해 loop 종료
+            # 모든 multi worker 셀에 TF_CONFIG 세팅 코드 삽입 완료
+            # multi worker dict에 name과 worker수 저장 완료 {"first":3, "second":4}
 
-        if (isDistribute):
-            # 노트북에 distribute 셀이 없으면 이 단계가 필요 없음
+            if (isMultiWorkerMirroredStrategy):
 
-            # 모든 셀들의 "prev:name" 태그들을 보고, (dict를 참조하여) 필요시 번호를 붙여준 후,
-            # distribute 셀들을 찾아서 복제하면서 "block:name" 뒤에 번호를 붙여준다.
-                # 주의: prev:name 수정이 먼저이고 복제가 나중이어야 한다.
-                # (prev:name 태그들 수정사항이 반영된 채 복제되어야 하기 때문)
+                SET_TF_CONFIG_FOR_PARAMETER_SERVER_STRATEGY = '''
 
-            # 먼저 prev:name 태그들을 찾아서 수정한다.
-            # 수정이 끝난 다음 새로운 반복문을 만들고,
-            # distribute 셀들을 찾아 복제하면서 block:name 뒤에 번호를 붙여준다.
+'''
 
             for c in self.notebook.cells:
                 if not ((c.cell_type == "code")
@@ -405,9 +419,9 @@ while True:
                     if (re.match(PREV_TAG, t)):
                         # 이 태그가 prev:name 태그이고
                         prevStepName = t.split(':').pop(1)
-                        if prevStepName in distributeDict:
-                            # prev:name의 과정이 distribute training 이라면
-                            for i in range(1, distributeDict[prevStepName] + 1):
+                        if prevStepName in workersDict:
+                            # prev:name의 과정이 multi worker training 이라면
+                            for i in range(1, workersDict[prevStepName] + 1):
                                 newTags.append(t + str(i))
                                 # prev:name 태그들을 번호 붙여서 복제한다.
                         else:
@@ -426,32 +440,32 @@ while True:
                 if not ((c.cell_type == "code")
                         and ('tags' in c.metadata)
                         and (len(c.metadata['tags']) > 0)
-                        and (any(re.match(DISTRIBUTE_TAG, t)
+                        and (any(re.match(MULTI_WORKER_MIRRORED_STRATEGY_TAG, t)
                                  for t in c.metadata['tags']))):
                     # 이 셀이 코드 셀이 아니거나 prev:name 태그가 없으면 수정이 필요 없음
                     newCells.append(c)
                     continue
 
-                # 여기까지 통과한 셀은 distribute 셀이므로
+                # 여기까지 통과한 셀은 multi worker 셀이므로
                 # 복제 후 block:name 태그 수정 필요
                 # 코드에 worker index 삽입 필요
-                distributeStepTag = '' # 의미 없는 초기값, 아래에서 수정
-                distributeStepName = '' # 의미 없는 초기값, 아래에서 수정
+                stepTag = '' # 의미 없는 초기값, 아래에서 수정
+                stepName = '' # 의미 없는 초기값, 아래에서 수정
                 numWorkers = 0 # 의미 없는 초기값, 아래에서 수정
                 for t in c.metadata['tags']:
                     if (re.match(BLOCK_TAG, t)):
                         # block:name 태그를 찾음
-                        distributeStepTag = t
-                        distributeStepName = t.split(':').pop(1)
-                        numWorkers = distributeDict[distributeStepName]
+                        stepTag = t
+                        stepName = t.split(':').pop(1)
+                        numWorkers = workersDict[stepName]
                         # name과 worker 개수를 결정함
                         # block:name 태그는 유일하므로 하나 찾았으면 break
                         break
                 for i in range(1, numWorkers + 1):
                     # 셀 사본 생성, 원본 태그 제거, 번호 붙인 태그 삽입
                     _c = copy.deepcopy(c)
-                    _c.metadata['tags'].remove(distributeStepTag)
-                    _c.metadata['tags'].append(distributeStepTag + str(i))
+                    _c.metadata['tags'].remove(stepTag)
+                    _c.metadata['tags'].append(stepTag + str(i))
                     _c.source = _c.source.replace('@@WORKER_INDEX@@', str(i-1))
                     newCells.append(_c)
             # 셀 업데이트

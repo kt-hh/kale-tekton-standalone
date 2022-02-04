@@ -29,6 +29,9 @@ interface IProps {
   previousBlockName: string;
   stepDependencies: string[];
   limits: { [id: string]: string };
+  distribute: string;
+  numWorkers: string;
+  numParameterServers: string;
   cellElement: any;
   cellIndex: number;
 }
@@ -224,6 +227,32 @@ export class InlineMetadata extends React.Component<IProps, IState> {
     );
   }
 
+  createDistributeText() {
+    // console.log(this.props);
+    const distributeType = this.props.distribute === 'distribute:MultiWorkerMirroredStrategy'
+      ? 'MultiWorkerMirroredStrategy'
+      : this.props.distribute === 'distribute:ParameterServerStrategy'
+      ? 'ParameterServerStrategy'
+      : '';
+    let text = '';
+    if (distributeType === 'MultiWorkerMirroredStrategy') {
+      text = `MultiWorkerMirroredStrategy with ${this.props.numWorkers.split(':')[1]} workers`;
+    }
+    else if (distributeType === 'ParameterServerStrategy') {
+      text = `ParameterServerStrategy with ${this.props.numParameterServers.split(':')[1]} parameter servers and ${this.props.numWorkers.split(':')[1]} workers`;
+    }
+
+    return distributeType !== '' ? (
+      <React.Fragment>
+        <p style={{ fontStyle: 'italic', marginLeft: '10px' }}>
+          {text}
+        </p>
+      </React.Fragment>
+    ) : (
+      ''
+    );
+  }
+
   /**
    * Create a list of div dots that represent the dependencies of the current
    * block
@@ -263,6 +292,8 @@ export class InlineMetadata extends React.Component<IProps, IState> {
         {this.state.dependencies}
 
         {this.createLimitsText()}
+
+        {this.createDistributeText()}
       </>
     );
 
