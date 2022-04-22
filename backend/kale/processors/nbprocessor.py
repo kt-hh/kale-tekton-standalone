@@ -293,7 +293,7 @@ class NotebookProcessor(BaseProcessor):
                 if (sum(bool(re.match(WORKERS_TAG, t)) for t in c.metadata['tags']) > 1):
                     raise ValueError('"numWorkers:n" tag must be unique.')
 
-                # 해당 셀에 MultiWorkerMirroredStrategy, block:name, numWorkers:n 태그가 모두 있는 상황 보장됨
+                # 해당 셀에 distribute:MultiWorkerMirroredStrategy, block:name, numWorkers:n 태그가 모두 있는 상황 보장됨
                 # notebook의 multi worker dict에 해당 cell 정보 추가
                 # {} -> {"first":3} -> {"first":3, "second":4} -> ...
                 isMultiWorkerMirroredStrategy = True # 추후에 다시 셀들을 순회하면서 수정할 때 사용하기 위한 플래그
@@ -391,17 +391,11 @@ while True:
                 # SET_TF_CONFIG_LIST = [x + '\n' for x in SET_TF_CONFIG.split('\n')]
                 # c.source = SET_TF_CONFIG_LIST + c.source
                 c.source = SET_TF_CONFIG_FOR_MULTI_WORKER_MIRRORED_STRATEGY + c.source
-                # 알고보니 c.source가 list가 아니라 string이다...
+                # 알고보니 c.source가 list가 아니라 string이다.
 
             # 노트북의 모든 셀들에 대해 loop 종료
             # 모든 multi worker 셀에 TF_CONFIG 세팅 코드 삽입 완료
             # multi worker dict에 name과 worker수 저장 완료 {"first":3, "second":4}
-
-            if (isMultiWorkerMirroredStrategy):
-
-                SET_TF_CONFIG_FOR_PARAMETER_SERVER_STRATEGY = '''
-
-'''
 
             for c in self.notebook.cells:
                 if not ((c.cell_type == "code")
