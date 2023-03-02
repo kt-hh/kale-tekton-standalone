@@ -49,7 +49,12 @@ RUN pip3 install --upgrade .
 RUN pip3 install "kfp-tekton==1.0.0"
 RUN pip3 install "tekton-pipeline==0.1.3"
 RUN pip3 install --upgrade "kubeflow-fairing==1.0.2"
-RUN pip3 install --upgrade "kfserving==0.6.1"
+RUN pip3 install "torch"
+RUN pip3 install "torchvision"
+RUN pip3 install "pandas"
+RUN pip3 install "seaborn"
+RUN pip3 install "sklearn"
+RUN pip3 install --upgrade "kserve==0.7.0"
 RUN pip3 install --upgrade "ray==1.4.0"
 RUN pip3 install --upgrade "cloudpickle==2.0.0"
 RUN pip3 install --upgrade "kubernetes"
@@ -66,7 +71,7 @@ RUN chown jovyan -R /home/jovyan
 
 RUN echo "jovyan ALL=(ALL:ALL) NOPASSWD:ALL" > /etc/sudoers.d/jovyan
 WORKDIR /home/jovyan
-USER jovyan
+
 
 CMD ["sh", "-c", \
      "jupyter lab --notebook-dir=/home/jovyan --ip=0.0.0.0 --no-browser \
