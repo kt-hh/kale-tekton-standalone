@@ -53,12 +53,19 @@ RUN pip3 install "torch"
 RUN pip3 install "torchvision"
 RUN pip3 install "pandas"
 RUN pip3 install "seaborn"
-RUN pip3 install "sklearn"
+# RUN pip3 install "sklearn"
+RUN pip3 install "pandas"
+RUN pip3 install "matplotlib"
+RUN pip3 install "numpy"
 RUN pip3 install --upgrade "kserve==0.7.0"
 RUN pip3 install --upgrade "ray==1.4.0"
 RUN pip3 install --upgrade "cloudpickle==2.0.0"
 RUN pip3 install --upgrade "kubernetes"
 RUN pip3 install --upgrade "msrestazure==0.6.4"
+RUN pip3 install --upgrade "scikit-learn" 
+
+
+
 
 WORKDIR /kale-tekton-standalone/labextension
 RUN jlpm install && \
